@@ -5,5 +5,9 @@
   "editor.formatOnSave": true,
   "editor.defaultFormatter": "esbenp.prettier-vscode",
   "markdown.extension.toc.levels": "2..6",
-  "markdown.extension.orderedList.autoRenumber": false
+  "markdown.extension.orderedList.autoRenumber": false,
+  "i18n-ally.localesPaths": [
+    "src/services/i18n",
+    "src/services/i18n/locales"
+  ]
 }
