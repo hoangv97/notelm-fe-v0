@@ -6,6 +6,7 @@ import useFetch from "../use-fetch";
 import wrapperFetchJsonResponse from "../wrapper-fetch-json-response";
 import {
   Flashcard,
+  Mindmap,
   PaginatedStudyResponse,
   Quiz,
   QuizQuestion,
@@ -188,6 +189,52 @@ export function useDeleteQuizQuestionService() {
         status: response.status,
         data: undefined,
       })),
+    [fetch]
+  );
+}
+
+export function useGetMindmapsService() {
+  const fetch = useFetch();
+
+  return useCallback(
+    (
+      params: ListParams & { noteId: string },
+      requestConfig?: RequestConfigType
+    ): Promise<ApiResult<PaginatedStudyResponse<Mindmap>>> => {
+      return fetch(buildListUrl("mindmaps", params), {
+        method: "GET",
+        ...requestConfig,
+      })
+        .then(wrapperFetchJsonResponse<PaginatedStudyResponse<Mindmap>>)
+        .then((response) => ({
+          status: response.status,
+          data: response.data as PaginatedStudyResponse<Mindmap>,
+        }));
+    },
+    [fetch]
+  );
+}
+
+export function useUpdateMindmapService() {
+  const fetch = useFetch();
+
+  return useCallback(
+    (
+      id: string,
+      data: Partial<Pick<Mindmap, "title" | "layout" | "tree">>,
+      requestConfig?: RequestConfigType
+    ): Promise<ApiResult<Mindmap>> => {
+      return fetch(`${API_URL}/v1/mindmaps/${id}`, {
+        method: "PATCH",
+        body: JSON.stringify(data),
+        ...requestConfig,
+      })
+        .then(wrapperFetchJsonResponse<Mindmap>)
+        .then((response) => ({
+          status: response.status,
+          data: response.data as Mindmap,
+        }));
+    },
     [fetch]
   );
 }

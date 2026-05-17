@@ -48,3 +48,22 @@ export type QuizQuestion = {
   updatedAt: string;
   deletedAt: string | null;
 };
+
+export type MindmapTreeNode = {
+  label: string;
+  type?: string;
+  children: MindmapTreeNode[];
+};
+
+export type Mindmap = {
+  layout: string;
+  noteCount: number;
+  tree: string;
+  title: string;
+  noteId: string;
+  userId: string;
+  id: string;
+  createdAt: string;
+  updatedAt: string;
+  deletedAt: string | null;
+};

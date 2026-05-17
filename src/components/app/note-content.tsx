@@ -17,6 +17,7 @@ import AccountTreeIcon from "@mui/icons-material/AccountTree";
 import InfoIcon from "@mui/icons-material/Info";
 import { alpha, useTheme } from "@mui/material/styles";
 import FlashcardsTab from "./flashcards-tab";
+import MindmapTab from "./mindmap-tab";
 import QuizzesTab from "./quizzes-tab";
 import {
   useGetNoteService,
@@ -364,30 +365,7 @@ export default function NoteContent({ noteId }: NoteContentProps) {
       </TabPanel>
 
       <TabPanel value={tabValue} index={3}>
-        <Box
-          sx={{
-            display: "flex",
-            flexDirection: "column",
-            alignItems: "center",
-            justifyContent: "center",
-            py: 8,
-          }}
-        >
-          <AccountTreeIcon
-            sx={{
-              fontSize: 64,
-              color: alpha(theme.palette.text.secondary, 0.2),
-              mb: 2,
-            }}
-          />
-          <Typography variant="h6" color="text.secondary">
-            Mindmap
-          </Typography>
-          <Typography variant="body2" color="text.disabled">
-            Coming soon — a visual mindmap will be generated from your note
-            content
-          </Typography>
-        </Box>
+        <MindmapTab noteId={noteId} />
       </TabPanel>
     </Box>
   );
