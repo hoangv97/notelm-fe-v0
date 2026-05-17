@@ -16,6 +16,8 @@ import QuizIcon from "@mui/icons-material/Quiz";
 import AccountTreeIcon from "@mui/icons-material/AccountTree";
 import InfoIcon from "@mui/icons-material/Info";
 import { alpha, useTheme } from "@mui/material/styles";
+import FlashcardsTab from "./flashcards-tab";
+import QuizzesTab from "./quizzes-tab";
 import {
   useGetNoteService,
   useUpdateNoteService,
@@ -227,7 +229,7 @@ export default function NoteContent({ noteId }: NoteContentProps) {
         >
           <Tab icon={<InfoIcon />} iconPosition="start" label="Note Info" />
           <Tab icon={<StyleIcon />} iconPosition="start" label="Flashcards" />
-          <Tab icon={<QuizIcon />} iconPosition="start" label="Quiz" />
+          <Tab icon={<QuizIcon />} iconPosition="start" label="Quizzes" />
           <Tab
             icon={<AccountTreeIcon />}
             iconPosition="start"
@@ -354,55 +356,11 @@ export default function NoteContent({ noteId }: NoteContentProps) {
       </TabPanel>
 
       <TabPanel value={tabValue} index={1}>
-        <Box
-          sx={{
-            display: "flex",
-            flexDirection: "column",
-            alignItems: "center",
-            justifyContent: "center",
-            py: 8,
-          }}
-        >
-          <StyleIcon
-            sx={{
-              fontSize: 64,
-              color: alpha(theme.palette.text.secondary, 0.2),
-              mb: 2,
-            }}
-          />
-          <Typography variant="h6" color="text.secondary">
-            Flashcards
-          </Typography>
-          <Typography variant="body2" color="text.disabled">
-            Coming soon — flashcards will be generated from your note content
-          </Typography>
-        </Box>
+        <FlashcardsTab noteId={noteId} />
       </TabPanel>
 
       <TabPanel value={tabValue} index={2}>
-        <Box
-          sx={{
-            display: "flex",
-            flexDirection: "column",
-            alignItems: "center",
-            justifyContent: "center",
-            py: 8,
-          }}
-        >
-          <QuizIcon
-            sx={{
-              fontSize: 64,
-              color: alpha(theme.palette.text.secondary, 0.2),
-              mb: 2,
-            }}
-          />
-          <Typography variant="h6" color="text.secondary">
-            Quiz
-          </Typography>
-          <Typography variant="body2" color="text.disabled">
-            Coming soon — quizzes will be generated from your note content
-          </Typography>
-        </Box>
+        <QuizzesTab noteId={noteId} />
       </TabPanel>
 
       <TabPanel value={tabValue} index={3}>

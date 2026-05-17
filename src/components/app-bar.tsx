@@ -111,9 +111,7 @@ function ResponsiveAppBar() {
                   component={Link}
                   href="/app"
                 >
-                  <Typography textAlign="center">
-                    App
-                  </Typography>
+                  <Typography textAlign="center">App</Typography>
                 </MenuItem>
               )}
 
