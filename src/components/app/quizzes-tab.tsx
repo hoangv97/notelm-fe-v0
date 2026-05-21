@@ -12,15 +12,7 @@ import FormControl from "@mui/material/FormControl";
 import IconButton from "@mui/material/IconButton";
 import InputLabel from "@mui/material/InputLabel";
 import MenuItem from "@mui/material/MenuItem";
-import Paper from "@mui/material/Paper";
 import Select from "@mui/material/Select";
-import Skeleton from "@mui/material/Skeleton";
-import Table from "@mui/material/Table";
-import TableBody from "@mui/material/TableBody";
-import TableCell from "@mui/material/TableCell";
-import TableContainer from "@mui/material/TableContainer";
-import TableHead from "@mui/material/TableHead";
-import TableRow from "@mui/material/TableRow";
 import TextField from "@mui/material/TextField";
 import Tooltip from "@mui/material/Tooltip";
 import Typography from "@mui/material/Typography";
@@ -29,6 +21,7 @@ import EditIcon from "@mui/icons-material/Edit";
 import VisibilityIcon from "@mui/icons-material/Visibility";
 import { alpha, useTheme } from "@mui/material/styles";
 import useConfirmDialog from "@/components/confirm-dialog/use-confirm-dialog";
+import DataGridTable from "@/components/table/data-grid-table";
 import {
   useDeleteQuizQuestionService,
   useGetQuizQuestionsService,
@@ -36,8 +29,9 @@ import {
   useUpdateQuizQuestionService,
 } from "@/services/api/services/study";
 import { Quiz, QuizQuestion } from "@/services/api/types/study-types";
+import { GridColDef } from "@mui/x-data-grid";
 
-const PAGE_LIMIT = 10;
+const FETCH_LIMIT = 100;
 const QUIZ_LIMIT = 25;
 
 type QuizzesTabProps = {
@@ -113,8 +107,6 @@ export default function QuizzesTab({ noteId }: QuizzesTabProps) {
 
   const [quizzes, setQuizzes] = useState<Quiz[]>([]);
   const [selectedQuizId, setSelectedQuizId] = useState("");
-  const [page, setPage] = useState(1);
-  const [hasNextPage, setHasNextPage] = useState(false);
   const [rows, setRows] = useState<QuizQuestion[]>([]);
   const [loadingQuizzes, setLoadingQuizzes] = useState(true);
   const [loadingQuestions, setLoadingQuestions] = useState(false);
@@ -152,26 +144,34 @@ export default function QuizzesTab({ noteId }: QuizzesTabProps) {
   const loadQuestions = useCallback(async () => {
     if (!selectedQuizId) {
       setRows([]);
-      setHasNextPage(false);
       return;
     }
 
     setLoadingQuestions(true);
     try {
-      const result = await getQuizQuestions({
-        quizId: selectedQuizId,
-        page,
-        limit: PAGE_LIMIT,
-      });
-      setRows(result.data.data);
-      setHasNextPage(result.data.hasNextPage);
+      const nextRows: QuizQuestion[] = [];
+      let currentPage = 1;
+      let hasNextPage = true;
+
+      while (hasNextPage) {
+        const result = await getQuizQuestions({
+          quizId: selectedQuizId,
+          page: currentPage,
+          limit: FETCH_LIMIT,
+        });
+        const pageRows = result.data.data;
+        nextRows.push(...pageRows);
+        hasNextPage = result.data.hasNextPage && pageRows.length > 0;
+        currentPage += 1;
+      }
+
+      setRows(nextRows);
     } catch {
       setRows([]);
-      setHasNextPage(false);
     } finally {
       setLoadingQuestions(false);
     }
-  }, [getQuizQuestions, page, selectedQuizId]);
+  }, [getQuizQuestions, selectedQuizId]);
 
   useEffect(() => {
     loadQuizzes();
@@ -222,6 +222,115 @@ export default function QuizzesTab({ noteId }: QuizzesTabProps) {
     }
   };
 
+  const handleRowUpdate = async (updated: QuizQuestion) => {
+    await updateQuizQuestion(updated.id, {
+      question: updated.question,
+      options: updated.options,
+      correctAnswer: updated.correctAnswer,
+      explanation: updated.explanation,
+      type: updated.type,
+      difficulty: updated.difficulty,
+      tags: updated.tags,
+    });
+    setRows((current) =>
+      current.map((question) =>
+        question.id === updated.id ? updated : question
+      )
+    );
+    return updated;
+  };
+
+  const columns: GridColDef<QuizQuestion>[] = [
+    {
+      field: "index",
+      headerName: "Index",
+      width: 96,
+      type: "number",
+      valueGetter: (value) => Number(value) + 1,
+    },
+    {
+      field: "question",
+      headerName: "Question",
+      flex: 1.3,
+      minWidth: 260,
+      editable: true,
+      renderCell: (params) => truncate(params.row.question),
+    },
+    {
+      field: "type",
+      headerName: "Type",
+      width: 160,
+      editable: true,
+      renderCell: (params) => (
+        <Chip label={params.row.type} size="small" variant="outlined" />
+      ),
+    },
+    {
+      field: "difficulty",
+      headerName: "Difficulty",
+      width: 140,
+      editable: true,
+      renderCell: (params) => (
+        <Chip
+          label={params.row.difficulty || "unset"}
+          size="small"
+          variant="outlined"
+        />
+      ),
+    },
+    {
+      field: "correctAnswer",
+      headerName: "Correct answer",
+      flex: 0.8,
+      minWidth: 180,
+      editable: true,
+      renderCell: (params) => truncate(getCorrectAnswerText(params.row), 80),
+    },
+    {
+      field: "explanation",
+      headerName: "Explanation",
+      flex: 1,
+      minWidth: 220,
+      editable: true,
+      renderCell: (params) => truncate(params.row.explanation || "-", 100),
+    },
+    {
+      field: "actions",
+      headerName: "Actions",
+      width: 132,
+      align: "right",
+      headerAlign: "right",
+      filterable: false,
+      sortable: false,
+      renderCell: (params) => (
+        <Box>
+          <Tooltip title="Preview">
+            <IconButton size="small" onClick={() => handlePreview(params.row)}>
+              <VisibilityIcon fontSize="small" />
+            </IconButton>
+          </Tooltip>
+          <Tooltip title="Edit">
+            <IconButton
+              size="small"
+              onClick={() => setEditQuestion(params.row)}
+            >
+              <EditIcon fontSize="small" />
+            </IconButton>
+          </Tooltip>
+          <Tooltip title="Delete">
+            <IconButton
+              size="small"
+              color="error"
+              onClick={() => handleDelete(params.row)}
+            >
+              <DeleteIcon fontSize="small" />
+            </IconButton>
+          </Tooltip>
+        </Box>
+      ),
+    },
+  ];
+
   const previewOptions = previewQuestion ? parseOptions(previewQuestion) : [];
   const isShortAnswer = previewQuestion?.type === "short_answer";
   const answered = selectedAnswer !== null;
@@ -254,10 +363,7 @@ export default function QuizzesTab({ noteId }: QuizzesTabProps) {
             label="Quiz"
             value={selectedQuizId}
             disabled={loadingQuizzes || quizzes.length === 0}
-            onChange={(event) => {
-              setSelectedQuizId(event.target.value);
-              setPage(1);
-            }}
+            onChange={(event) => setSelectedQuizId(event.target.value)}
           >
             {quizzes.map((quiz) => (
               <MenuItem key={quiz.id} value={quiz.id}>
@@ -268,114 +374,13 @@ export default function QuizzesTab({ noteId }: QuizzesTabProps) {
         </FormControl>
       </Box>
 
-      <TableContainer component={Paper} variant="outlined">
-        <Table size="small" stickyHeader>
-          <TableHead>
-            <TableRow>
-              <TableCell style={{ width: 72 }}>Index</TableCell>
-              <TableCell>Question</TableCell>
-              <TableCell style={{ width: 140 }}>Type</TableCell>
-              <TableCell style={{ width: 120 }}>Difficulty</TableCell>
-              <TableCell>Correct answer</TableCell>
-              <TableCell style={{ width: 120 }} align="right">
-                Actions
-              </TableCell>
-            </TableRow>
-          </TableHead>
-          <TableBody>
-            {(loadingQuizzes || loadingQuestions) &&
-              Array.from({ length: 4 }).map((_, index) => (
-                <TableRow key={index}>
-                  <TableCell colSpan={6}>
-                    <Skeleton height={32} />
-                  </TableCell>
-                </TableRow>
-              ))}
-            {!loadingQuizzes && !loadingQuestions && rows.length === 0 && (
-              <TableRow>
-                <TableCell colSpan={6}>
-                  <Typography
-                    variant="body2"
-                    color="text.secondary"
-                    sx={{ py: 4, textAlign: "center" }}
-                  >
-                    No quiz questions found for this note.
-                  </Typography>
-                </TableCell>
-              </TableRow>
-            )}
-            {!loadingQuizzes &&
-              !loadingQuestions &&
-              rows.map((question) => (
-                <TableRow key={question.id} hover>
-                  <TableCell>{question.index + 1}</TableCell>
-                  <TableCell>{truncate(question.question)}</TableCell>
-                  <TableCell>
-                    <Chip
-                      label={question.type}
-                      size="small"
-                      variant="outlined"
-                    />
-                  </TableCell>
-                  <TableCell>
-                    <Chip
-                      label={question.difficulty || "unset"}
-                      size="small"
-                      variant="outlined"
-                    />
-                  </TableCell>
-                  <TableCell>
-                    {truncate(getCorrectAnswerText(question), 80)}
-                  </TableCell>
-                  <TableCell align="right">
-                    <Tooltip title="Preview">
-                      <IconButton
-                        size="small"
-                        onClick={() => handlePreview(question)}
-                      >
-                        <VisibilityIcon fontSize="small" />
-                      </IconButton>
-                    </Tooltip>
-                    <Tooltip title="Edit">
-                      <IconButton
-                        size="small"
-                        onClick={() => setEditQuestion(question)}
-                      >
-                        <EditIcon fontSize="small" />
-                      </IconButton>
-                    </Tooltip>
-                    <Tooltip title="Delete">
-                      <IconButton
-                        size="small"
-                        color="error"
-                        onClick={() => handleDelete(question)}
-                      >
-                        <DeleteIcon fontSize="small" />
-                      </IconButton>
-                    </Tooltip>
-                  </TableCell>
-                </TableRow>
-              ))}
-          </TableBody>
-        </Table>
-      </TableContainer>
-
-      <Box sx={{ display: "flex", justifyContent: "flex-end", gap: 1, mt: 2 }}>
-        <Button
-          variant="outlined"
-          disabled={page === 1 || loadingQuestions}
-          onClick={() => setPage((current) => Math.max(1, current - 1))}
-        >
-          Previous
-        </Button>
-        <Button
-          variant="outlined"
-          disabled={!hasNextPage || loadingQuestions}
-          onClick={() => setPage((current) => current + 1)}
-        >
-          Next
-        </Button>
-      </Box>
+      <DataGridTable
+        rows={rows}
+        columns={columns}
+        loading={loadingQuizzes || loadingQuestions}
+        noRowsLabel="No quiz questions found for this note."
+        processRowUpdate={handleRowUpdate}
+      />
 
       <Dialog
         open={!!previewQuestion}

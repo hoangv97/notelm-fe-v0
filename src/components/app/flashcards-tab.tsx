@@ -9,14 +9,6 @@ import DialogActions from "@mui/material/DialogActions";
 import DialogContent from "@mui/material/DialogContent";
 import DialogTitle from "@mui/material/DialogTitle";
 import IconButton from "@mui/material/IconButton";
-import Paper from "@mui/material/Paper";
-import Skeleton from "@mui/material/Skeleton";
-import Table from "@mui/material/Table";
-import TableBody from "@mui/material/TableBody";
-import TableCell from "@mui/material/TableCell";
-import TableContainer from "@mui/material/TableContainer";
-import TableHead from "@mui/material/TableHead";
-import TableRow from "@mui/material/TableRow";
 import TextField from "@mui/material/TextField";
 import Tooltip from "@mui/material/Tooltip";
 import Typography from "@mui/material/Typography";
@@ -25,14 +17,16 @@ import EditIcon from "@mui/icons-material/Edit";
 import VisibilityIcon from "@mui/icons-material/Visibility";
 import { alpha, useTheme } from "@mui/material/styles";
 import useConfirmDialog from "@/components/confirm-dialog/use-confirm-dialog";
+import DataGridTable from "@/components/table/data-grid-table";
 import {
   useDeleteFlashcardService,
   useGetFlashcardsService,
   useUpdateFlashcardService,
 } from "@/services/api/services/study";
 import { Flashcard } from "@/services/api/types/study-types";
+import { GridColDef } from "@mui/x-data-grid";
 
-const PAGE_LIMIT = 10;
+const FETCH_LIMIT = 100;
 
 type FlashcardsTabProps = {
   noteId: string;
@@ -49,8 +43,6 @@ export default function FlashcardsTab({ noteId }: FlashcardsTabProps) {
   const updateFlashcard = useUpdateFlashcardService();
   const deleteFlashcard = useDeleteFlashcardService();
 
-  const [page, setPage] = useState(1);
-  const [hasNextPage, setHasNextPage] = useState(false);
   const [rows, setRows] = useState<Flashcard[]>([]);
   const [loading, setLoading] = useState(true);
   const [previewCard, setPreviewCard] = useState<Flashcard | null>(null);
@@ -61,16 +53,29 @@ export default function FlashcardsTab({ noteId }: FlashcardsTabProps) {
   const loadFlashcards = useCallback(async () => {
     setLoading(true);
     try {
-      const result = await getFlashcards({ noteId, page, limit: PAGE_LIMIT });
-      setRows(result.data.data);
-      setHasNextPage(result.data.hasNextPage);
+      const nextRows: Flashcard[] = [];
+      let currentPage = 1;
+      let hasNextPage = true;
+
+      while (hasNextPage) {
+        const result = await getFlashcards({
+          noteId,
+          page: currentPage,
+          limit: FETCH_LIMIT,
+        });
+        const pageRows = result.data.data;
+        nextRows.push(...pageRows);
+        hasNextPage = result.data.hasNextPage && pageRows.length > 0;
+        currentPage += 1;
+      }
+
+      setRows(nextRows);
     } catch {
       setRows([]);
-      setHasNextPage(false);
     } finally {
       setLoading(false);
     }
-  }, [getFlashcards, noteId, page]);
+  }, [getFlashcards, noteId]);
 
   useEffect(() => {
     loadFlashcards();
@@ -113,114 +118,108 @@ export default function FlashcardsTab({ noteId }: FlashcardsTabProps) {
     }
   };
 
+  const handleRowUpdate = async (updated: Flashcard) => {
+    await updateFlashcard(updated.id, {
+      front: updated.front,
+      back: updated.back,
+      tags: updated.tags,
+      difficulty: updated.difficulty,
+    });
+    setRows((current) =>
+      current.map((flashcard) =>
+        flashcard.id === updated.id ? updated : flashcard
+      )
+    );
+    return updated;
+  };
+
+  const columns: GridColDef<Flashcard>[] = [
+    {
+      field: "front",
+      headerName: "Front",
+      flex: 1.2,
+      minWidth: 220,
+      editable: true,
+      renderCell: (params) => truncate(params.row.front),
+    },
+    {
+      field: "back",
+      headerName: "Back",
+      flex: 1.2,
+      minWidth: 220,
+      editable: true,
+      renderCell: (params) => truncate(params.row.back),
+    },
+    {
+      field: "difficulty",
+      headerName: "Difficulty",
+      width: 140,
+      editable: true,
+      renderCell: (params) => (
+        <Chip
+          label={params.row.difficulty || "unset"}
+          size="small"
+          variant="outlined"
+        />
+      ),
+    },
+    {
+      field: "tags",
+      headerName: "Tags",
+      flex: 0.8,
+      minWidth: 160,
+      editable: true,
+      renderCell: (params) => truncate(params.row.tags || "-", 80),
+    },
+    {
+      field: "actions",
+      headerName: "Actions",
+      width: 132,
+      align: "right",
+      headerAlign: "right",
+      filterable: false,
+      sortable: false,
+      renderCell: (params) => (
+        <Box>
+          <Tooltip title="Preview">
+            <IconButton size="small" onClick={() => handlePreview(params.row)}>
+              <VisibilityIcon fontSize="small" />
+            </IconButton>
+          </Tooltip>
+          <Tooltip title="Edit">
+            <IconButton size="small" onClick={() => setEditCard(params.row)}>
+              <EditIcon fontSize="small" />
+            </IconButton>
+          </Tooltip>
+          <Tooltip title="Delete">
+            <IconButton
+              size="small"
+              color="error"
+              onClick={() => handleDelete(params.row)}
+            >
+              <DeleteIcon fontSize="small" />
+            </IconButton>
+          </Tooltip>
+        </Box>
+      ),
+    },
+  ];
+
   return (
     <Box>
       <Box sx={{ display: "flex", alignItems: "center", mb: 2 }}>
         <Typography variant="subtitle1" sx={{ fontWeight: 700, flexGrow: 1 }}>
           Flashcards
         </Typography>
-        <Typography variant="body2" color="text.secondary">
-          Page {page}
-        </Typography>
       </Box>
 
-      <TableContainer component={Paper} variant="outlined">
-        <Table size="small" stickyHeader>
-          <TableHead>
-            <TableRow>
-              <TableCell>Front</TableCell>
-              <TableCell>Back</TableCell>
-              <TableCell style={{ width: 120 }}>Difficulty</TableCell>
-              <TableCell>Tags</TableCell>
-              <TableCell style={{ width: 120 }} align="right">
-                Actions
-              </TableCell>
-            </TableRow>
-          </TableHead>
-          <TableBody>
-            {loading &&
-              Array.from({ length: 4 }).map((_, index) => (
-                <TableRow key={index}>
-                  <TableCell colSpan={5}>
-                    <Skeleton height={32} />
-                  </TableCell>
-                </TableRow>
-              ))}
-            {!loading && rows.length === 0 && (
-              <TableRow>
-                <TableCell colSpan={5}>
-                  <Typography
-                    variant="body2"
-                    color="text.secondary"
-                    sx={{ py: 4, textAlign: "center" }}
-                  >
-                    No flashcards found for this note.
-                  </Typography>
-                </TableCell>
-              </TableRow>
-            )}
-            {!loading &&
-              rows.map((flashcard) => (
-                <TableRow key={flashcard.id} hover>
-                  <TableCell>{truncate(flashcard.front)}</TableCell>
-                  <TableCell>{truncate(flashcard.back)}</TableCell>
-                  <TableCell>
-                    <Chip
-                      label={flashcard.difficulty || "unset"}
-                      size="small"
-                      variant="outlined"
-                    />
-                  </TableCell>
-                  <TableCell>{truncate(flashcard.tags || "-", 80)}</TableCell>
-                  <TableCell align="right">
-                    <Tooltip title="Preview">
-                      <IconButton
-                        size="small"
-                        onClick={() => handlePreview(flashcard)}
-                      >
-                        <VisibilityIcon fontSize="small" />
-                      </IconButton>
-                    </Tooltip>
-                    <Tooltip title="Edit">
-                      <IconButton
-                        size="small"
-                        onClick={() => setEditCard(flashcard)}
-                      >
-                        <EditIcon fontSize="small" />
-                      </IconButton>
-                    </Tooltip>
-                    <Tooltip title="Delete">
-                      <IconButton
-                        size="small"
-                        color="error"
-                        onClick={() => handleDelete(flashcard)}
-                      >
-                        <DeleteIcon fontSize="small" />
-                      </IconButton>
-                    </Tooltip>
-                  </TableCell>
-                </TableRow>
-              ))}
-          </TableBody>
-        </Table>
-      </TableContainer>
-
-      <Box sx={{ display: "flex", justifyContent: "flex-end", gap: 1, mt: 2 }}>
-        <Button
-          variant="outlined"
-          disabled={page === 1 || loading}
-          onClick={() => setPage((current) => Math.max(1, current - 1))}
-        >
-          Previous
-        </Button>
-        <Button
-          variant="outlined"
-          disabled={!hasNextPage || loading}
-          onClick={() => setPage((current) => current + 1)}
-        >
-          Next
-        </Button>
-      </Box>
+      <DataGridTable
+        rows={rows}
+        columns={columns}
+        loading={loading}
+        noRowsLabel="No flashcards found for this note."
+        processRowUpdate={handleRowUpdate}
+      />
 
       <Dialog
         open={!!previewCard}

@@ -28,6 +28,7 @@
     "@hookform/resolvers": "5.2.2",
     "@mui/icons-material": "7.3.9",
     "@mui/material": "7.3.9",
+    "@mui/x-data-grid": "^8.28.6",
     "@mui/x-date-pickers": "8.27.2",
     "@mui/x-tree-view": "^9.1.0",
     "@react-oauth/google": "0.13.4",
