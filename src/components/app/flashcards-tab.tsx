@@ -36,6 +36,19 @@ function truncate(value: string, maxLength = 120) {
   return value.length > maxLength ? `${value.slice(0, maxLength)}...` : value;
 }
 
+function formatDateTime(value: string) {
+  const date = new Date(value);
+
+  if (Number.isNaN(date.getTime())) {
+    return value || "-";
+  }
+
+  return new Intl.DateTimeFormat("en", {
+    dateStyle: "medium",
+    timeStyle: "short",
+  }).format(date);
+}
+
 export default function FlashcardsTab({ noteId }: FlashcardsTabProps) {
   const theme = useTheme();
   const { confirmDialog } = useConfirmDialog();
@@ -172,6 +185,18 @@ export default function FlashcardsTab({ noteId }: FlashcardsTabProps) {
       renderCell: (params) => truncate(params.row.tags || "-", 80),
     },
     {
+      field: "createdAt",
+      headerName: "Created at",
+      width: 180,
+      renderCell: (params) => formatDateTime(params.row.createdAt),
+    },
+    {
+      field: "updatedAt",
+      headerName: "Updated at",
+      width: 180,
+      renderCell: (params) => formatDateTime(params.row.updatedAt),
+    },
+    {
       field: "actions",
       headerName: "Actions",
       width: 132,
@@ -219,6 +244,7 @@ export default function FlashcardsTab({ noteId }: FlashcardsTabProps) {
         loading={loading}
         noRowsLabel="No flashcards found for this note."
         processRowUpdate={handleRowUpdate}
+        tableMinWidth={1300}
       />
 
       <Dialog

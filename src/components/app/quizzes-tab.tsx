@@ -42,6 +42,19 @@ function truncate(value: string, maxLength = 120) {
   return value.length > maxLength ? `${value.slice(0, maxLength)}...` : value;
 }
 
+function formatDateTime(value: string) {
+  const date = new Date(value);
+
+  if (Number.isNaN(date.getTime())) {
+    return value || "-";
+  }
+
+  return new Intl.DateTimeFormat("en", {
+    dateStyle: "medium",
+    timeStyle: "short",
+  }).format(date);
+}
+
 function splitByPattern(str: string) {
   const items = str.split(",");
 
@@ -295,6 +308,18 @@ export default function QuizzesTab({ noteId }: QuizzesTabProps) {
       renderCell: (params) => truncate(params.row.explanation || "-", 100),
     },
     {
+      field: "createdAt",
+      headerName: "Created at",
+      width: 180,
+      renderCell: (params) => formatDateTime(params.row.createdAt),
+    },
+    {
+      field: "updatedAt",
+      headerName: "Updated at",
+      width: 180,
+      renderCell: (params) => formatDateTime(params.row.updatedAt),
+    },
+    {
       field: "actions",
       headerName: "Actions",
       width: 132,
@@ -380,6 +405,7 @@ export default function QuizzesTab({ noteId }: QuizzesTabProps) {
         loading={loadingQuizzes || loadingQuestions}
         noRowsLabel="No quiz questions found for this note."
         processRowUpdate={handleRowUpdate}
+        tableMinWidth={1500}
       />
 
       <Dialog
