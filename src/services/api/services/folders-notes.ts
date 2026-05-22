@@ -10,6 +10,7 @@ import {
   CreateNoteResponse,
   Folder,
   FolderContentsResponse,
+  GenerateNoteRequest,
   JobQueue,
   JobStatusEnum,
   Note,
@@ -323,6 +324,30 @@ export function useGetJobStatusService() {
         .then((response) => ({
           status: response.status,
           data: normalizeJob(response.data as JobQueue),
+        }));
+    },
+    [fetch]
+  );
+}
+
+export function useGenerateNoteService() {
+  const fetch = useFetch();
+
+  return useCallback(
+    (
+      id: string,
+      data: GenerateNoteRequest,
+      requestConfig?: RequestConfigType
+    ): Promise<ApiResult<unknown>> => {
+      return fetch(`${API_URL}/v1/notes/${id}/generate`, {
+        method: "POST",
+        body: JSON.stringify(data),
+        ...requestConfig,
+      })
+        .then(wrapperFetchJsonResponse<unknown>)
+        .then((response) => ({
+          status: response.status,
+          data: response.data,
         }));
     },
     [fetch]

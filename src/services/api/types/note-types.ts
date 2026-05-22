@@ -113,3 +113,9 @@ export type CreateNoteResponse = {
   note: Note;
   jobId: string;
 };
+
+export type GenerateNoteType = "summary" | "flashcards" | "quiz" | "mindmap";
+
+export type GenerateNoteRequest = {
+  types: GenerateNoteType[];
+};

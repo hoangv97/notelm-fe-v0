@@ -9,7 +9,15 @@ import Skeleton from "@mui/material/Skeleton";
 import Chip from "@mui/material/Chip";
 import Tabs from "@mui/material/Tabs";
 import Tab from "@mui/material/Tab";
+import Dialog from "@mui/material/Dialog";
+import DialogTitle from "@mui/material/DialogTitle";
+import DialogContent from "@mui/material/DialogContent";
+import DialogActions from "@mui/material/DialogActions";
+import Checkbox from "@mui/material/Checkbox";
+import FormControlLabel from "@mui/material/FormControlLabel";
+import FormGroup from "@mui/material/FormGroup";
 import SaveIcon from "@mui/icons-material/Save";
+import AutoAwesomeIcon from "@mui/icons-material/AutoAwesome";
 import DescriptionIcon from "@mui/icons-material/Description";
 import ContentPasteSearchIcon from "@mui/icons-material/ContentPasteSearch";
 import StyleIcon from "@mui/icons-material/Style";
@@ -22,14 +30,26 @@ import FlashcardsTab from "./flashcards-tab";
 import MindmapTab from "./mindmap-tab";
 import QuizzesTab from "./quizzes-tab";
 import {
+  useGenerateNoteService,
   useGetNoteService,
   useUpdateNoteService,
 } from "@/services/api/services/folders-notes";
-import { Note, NoteStatusEnum } from "@/services/api/types/note-types";
+import {
+  GenerateNoteType,
+  Note,
+  NoteStatusEnum,
+} from "@/services/api/types/note-types";
 
 type NoteContentProps = {
   noteId: string;
 };
+
+const GENERATE_OPTIONS: Array<{ type: GenerateNoteType; label: string }> = [
+  { type: "summary", label: "Summary" },
+  { type: "flashcards", label: "Flashcards" },
+  { type: "quiz", label: "Quiz" },
+  { type: "mindmap", label: "Mindmap" },
+];
 
 function getStatusColor(status: NoteStatusEnum) {
   switch (status) {
@@ -73,6 +93,11 @@ export default function NoteContent({ noteId }: NoteContentProps) {
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
   const [tabValue, setTabValue] = useState(0);
+  const [generateModalOpen, setGenerateModalOpen] = useState(false);
+  const [generating, setGenerating] = useState(false);
+  const [selectedGenerateTypes, setSelectedGenerateTypes] = useState<
+    GenerateNoteType[]
+  >(GENERATE_OPTIONS.map((option) => option.type));
 
   // Editable fields
   const [name, setName] = useState("");
@@ -84,28 +109,46 @@ export default function NoteContent({ noteId }: NoteContentProps) {
 
   const getNote = useGetNoteService();
   const updateNote = useUpdateNoteService();
+  const generateNote = useGenerateNoteService();
 
-  const loadNote = useCallback(async () => {
-    setLoading(true);
-    try {
-      const result = await getNote(noteId);
-      const data = result.data;
-      setNote(data);
-      setName(data.name);
-      setDescription(data.description || "");
-      setTags(data.tagsList || []);
-      setContent(data.content || "");
-      setUrl(data.url || "");
-    } catch {
-      // ignore
-    } finally {
-      setLoading(false);
-    }
-  }, [noteId, getNote]);
+  const loadNote = useCallback(
+    async (showLoading = true) => {
+      if (showLoading) {
+        setLoading(true);
+      }
+      try {
+        const result = await getNote(noteId);
+        const data = result.data;
+        setNote(data);
+        setName(data.name);
+        setDescription(data.description || "");
+        setTags(data.tagsList || []);
+        setContent(data.content || "");
+        setUrl(data.url || "");
+      } catch {
+        // ignore
+      } finally {
+        if (showLoading) {
+          setLoading(false);
+        }
+      }
+    },
+    [noteId, getNote]
+  );
 
   useEffect(() => {
     loadNote();
   }, [loadNote]);
+
+  useEffect(() => {
+    if (note?.status !== NoteStatusEnum.PROCESSING) return;
+
+    const intervalId = window.setInterval(() => {
+      loadNote(false);
+    }, 10000);
+
+    return () => window.clearInterval(intervalId);
+  }, [loadNote, note?.status]);
 
   const handleSave = async () => {
     setSaving(true);
@@ -144,6 +187,29 @@ export default function NoteContent({ noteId }: NoteContentProps) {
     if (e.key === "Enter") {
       e.preventDefault();
       handleAddTag();
+    }
+  };
+
+  const handleToggleGenerateType = (type: GenerateNoteType) => {
+    setSelectedGenerateTypes((current) =>
+      current.includes(type)
+        ? current.filter((selectedType) => selectedType !== type)
+        : [...current, type]
+    );
+  };
+
+  const handleGenerate = async () => {
+    if (selectedGenerateTypes.length === 0 || generating) return;
+
+    setGenerateModalOpen(false);
+    setGenerating(true);
+    try {
+      await generateNote(noteId, { types: selectedGenerateTypes });
+      await loadNote(false);
+    } catch {
+      // ignore
+    } finally {
+      setGenerating(false);
     }
   };
 
@@ -338,6 +404,20 @@ export default function NoteContent({ noteId }: NoteContentProps) {
 
           <Box sx={{ display: "flex", alignItems: "center", gap: 2 }}>
             <Button
+              variant="outlined"
+              startIcon={<AutoAwesomeIcon />}
+              onClick={() => setGenerateModalOpen(true)}
+              disabled={generating || note.status === NoteStatusEnum.PROCESSING}
+              sx={{
+                borderRadius: 2,
+                textTransform: "none",
+                fontWeight: 600,
+                px: 3,
+              }}
+            >
+              {generating ? "Generating..." : "Generate"}
+            </Button>
+            <Button
               variant="contained"
               startIcon={<SaveIcon />}
               onClick={handleSave}
@@ -378,6 +458,51 @@ export default function NoteContent({ noteId }: NoteContentProps) {
       <TabPanel value={tabValue} index={4}>
         <MindmapTab noteId={noteId} />
       </TabPanel>
+
+      <Dialog
+        open={generateModalOpen}
+        onClose={() => setGenerateModalOpen(false)}
+        maxWidth="xs"
+        fullWidth
+      >
+        <DialogTitle>Generate study material</DialogTitle>
+        <DialogContent>
+          <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+            Choose one or more outputs to generate from this note.
+          </Typography>
+          <FormGroup>
+            {GENERATE_OPTIONS.map((option) => (
+              <FormControlLabel
+                key={option.type}
+                control={
+                  <Checkbox
+                    checked={selectedGenerateTypes.includes(option.type)}
+                    onChange={() => handleToggleGenerateType(option.type)}
+                  />
+                }
+                label={option.label}
+              />
+            ))}
+          </FormGroup>
+        </DialogContent>
+        <DialogActions sx={{ px: 3, pb: 2 }}>
+          <Button
+            onClick={() => setGenerateModalOpen(false)}
+            sx={{ textTransform: "none" }}
+          >
+            Cancel
+          </Button>
+          <Button
+            variant="contained"
+            startIcon={<AutoAwesomeIcon />}
+            onClick={handleGenerate}
+            disabled={selectedGenerateTypes.length === 0 || generating}
+            sx={{ textTransform: "none", fontWeight: 600 }}
+          >
+            Generate
+          </Button>
+        </DialogActions>
+      </Dialog>
     </Box>
   );
 }
