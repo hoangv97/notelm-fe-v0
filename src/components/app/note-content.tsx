@@ -11,11 +11,13 @@ import Tabs from "@mui/material/Tabs";
 import Tab from "@mui/material/Tab";
 import SaveIcon from "@mui/icons-material/Save";
 import DescriptionIcon from "@mui/icons-material/Description";
+import ContentPasteSearchIcon from "@mui/icons-material/ContentPasteSearch";
 import StyleIcon from "@mui/icons-material/Style";
 import QuizIcon from "@mui/icons-material/Quiz";
 import AccountTreeIcon from "@mui/icons-material/AccountTree";
 import InfoIcon from "@mui/icons-material/Info";
 import { alpha, useTheme } from "@mui/material/styles";
+import ContentChunksTab from "./content-chunks-tab";
 import FlashcardsTab from "./flashcards-tab";
 import MindmapTab from "./mindmap-tab";
 import QuizzesTab from "./quizzes-tab";
@@ -229,6 +231,11 @@ export default function NoteContent({ noteId }: NoteContentProps) {
           }}
         >
           <Tab icon={<InfoIcon />} iconPosition="start" label="Note Info" />
+          <Tab
+            icon={<ContentPasteSearchIcon />}
+            iconPosition="start"
+            label="Content Chunks"
+          />
           <Tab icon={<StyleIcon />} iconPosition="start" label="Flashcards" />
           <Tab icon={<QuizIcon />} iconPosition="start" label="Quizzes" />
           <Tab
@@ -357,14 +364,18 @@ export default function NoteContent({ noteId }: NoteContentProps) {
       </TabPanel>
 
       <TabPanel value={tabValue} index={1}>
-        <FlashcardsTab noteId={noteId} />
+        <ContentChunksTab noteId={noteId} />
       </TabPanel>
 
       <TabPanel value={tabValue} index={2}>
-        <QuizzesTab noteId={noteId} />
+        <FlashcardsTab noteId={noteId} />
       </TabPanel>
 
       <TabPanel value={tabValue} index={3}>
+        <QuizzesTab noteId={noteId} />
+      </TabPanel>
+
+      <TabPanel value={tabValue} index={4}>
         <MindmapTab noteId={noteId} />
       </TabPanel>
     </Box>
