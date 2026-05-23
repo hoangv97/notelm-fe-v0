@@ -14,6 +14,8 @@ export type AppContextType = {
   refreshTree: () => void;
   createNoteModalOpen: boolean;
   setCreateNoteModalOpen: (open: boolean) => void;
+  createNoteFolderId: string | null;
+  setCreateNoteFolderId: (folderId: string | null) => void;
   activeJobs: Array<{ jobId: string; noteName: string }>;
   addActiveJob: (jobId: string, noteName: string) => void;
   removeActiveJob: (jobId: string) => void;
@@ -26,6 +28,8 @@ export const AppContext = createContext<AppContextType>({
   refreshTree: () => {},
   createNoteModalOpen: false,
   setCreateNoteModalOpen: () => {},
+  createNoteFolderId: null,
+  setCreateNoteFolderId: () => {},
   activeJobs: [],
   addActiveJob: () => {},
   removeActiveJob: () => {},

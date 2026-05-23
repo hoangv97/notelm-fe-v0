@@ -61,6 +61,8 @@ export default function CreateNoteModal() {
   const {
     createNoteModalOpen,
     setCreateNoteModalOpen,
+    createNoteFolderId,
+    setCreateNoteFolderId,
     addActiveJob,
     refreshTree,
   } = useAppContext();
@@ -83,13 +85,15 @@ export default function CreateNoteModal() {
     try {
       const result = await getAllFolders();
       setFolders(result.data);
-      if (result.data.length > 0 && !folderId) {
+      if (createNoteFolderId) {
+        setFolderId(createNoteFolderId);
+      } else if (result.data.length > 0 && !folderId) {
         setFolderId(result.data[0].id);
       }
     } catch {
       // ignore
     }
-  }, [getAllFolders, folderId]);
+  }, [getAllFolders, folderId, createNoteFolderId]);
 
   useEffect(() => {
     if (createNoteModalOpen) {
@@ -108,6 +112,7 @@ export default function CreateNoteModal() {
     setUrl("");
     setFile(null);
     setCreating(false);
+    setCreateNoteFolderId(null);
   };
 
   const handleSelectType = (type: NoteTypeEnum) => {
@@ -286,6 +291,9 @@ export default function CreateNoteModal() {
                 onChange={(e) => setFolderId(e.target.value)}
                 label="Folder"
               >
+                {folderId && !folders.some((f) => f.id === folderId) && (
+                  <MenuItem value={folderId}>Selected folder</MenuItem>
+                )}
                 {folders.map((f) => (
                   <MenuItem key={f.id} value={f.id}>
                     {f.parentId ? "  └ " : ""}
