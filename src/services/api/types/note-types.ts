@@ -107,6 +107,7 @@ export type CreateNoteRequest = {
   content?: string;
   url?: string;
   file?: File;
+  generationTypes?: GenerateNoteType[];
 };
 
 export type CreateNoteResponse = {

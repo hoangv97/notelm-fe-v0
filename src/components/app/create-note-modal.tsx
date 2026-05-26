@@ -14,6 +14,9 @@ import MenuItem from "@mui/material/MenuItem";
 import Select from "@mui/material/Select";
 import FormControl from "@mui/material/FormControl";
 import InputLabel from "@mui/material/InputLabel";
+import Checkbox from "@mui/material/Checkbox";
+import FormControlLabel from "@mui/material/FormControlLabel";
+import FormGroup from "@mui/material/FormGroup";
 import Card from "@mui/material/Card";
 import CardContent from "@mui/material/CardContent";
 import CardActionArea from "@mui/material/CardActionArea";
@@ -30,7 +33,11 @@ import {
   useCreateNoteService,
   useGetAllFoldersService,
 } from "@/services/api/services/folders-notes";
-import { NoteTypeEnum, Folder } from "@/services/api/types/note-types";
+import {
+  NoteTypeEnum,
+  Folder,
+  GenerateNoteType,
+} from "@/services/api/types/note-types";
 
 const NOTE_TYPES = [
   {
@@ -56,6 +63,12 @@ const NOTE_TYPES = [
   },
 ];
 
+const GENERATION_OPTIONS: Array<{ type: GenerateNoteType; label: string }> = [
+  { type: "flashcards", label: "Flashcards" },
+  { type: "quiz", label: "Quiz" },
+  { type: "mindmap", label: "Mindmap" },
+];
+
 export default function CreateNoteModal() {
   const theme = useTheme();
   const {
@@ -67,7 +80,7 @@ export default function CreateNoteModal() {
     refreshTree,
   } = useAppContext();
 
-  const [step, setStep] = useState<"type" | "form">("type");
+  const [step, setStep] = useState<"type" | "form" | "generation">("type");
   const [selectedType, setSelectedType] = useState<NoteTypeEnum | null>(null);
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
@@ -77,6 +90,9 @@ export default function CreateNoteModal() {
   const [folderId, setFolderId] = useState("");
   const [folders, setFolders] = useState<Folder[]>([]);
   const [creating, setCreating] = useState(false);
+  const [selectedGenerationTypes, setSelectedGenerationTypes] = useState<
+    GenerateNoteType[]
+  >(GENERATION_OPTIONS.map((option) => option.type));
 
   const createNote = useCreateNoteService();
   const getAllFolders = useGetAllFoldersService();
@@ -88,7 +104,7 @@ export default function CreateNoteModal() {
       if (createNoteFolderId) {
         setFolderId(createNoteFolderId);
       } else if (result.data.length > 0 && !folderId) {
-        setFolderId(result.data[0].id);
+        // setFolderId(result.data[0].id);
       }
     } catch {
       // ignore
@@ -111,6 +127,7 @@ export default function CreateNoteModal() {
     setContent("");
     setUrl("");
     setFile(null);
+    setSelectedGenerationTypes(GENERATION_OPTIONS.map((option) => option.type));
     setCreating(false);
     setCreateNoteFolderId(null);
   };
@@ -120,8 +137,27 @@ export default function CreateNoteModal() {
     setStep("form");
   };
 
+  const canContinue =
+    !!selectedType &&
+    (selectedType !== NoteTypeEnum.TEXT || !!content.trim()) &&
+    (selectedType !== NoteTypeEnum.URL || !!url.trim()) &&
+    (selectedType !== NoteTypeEnum.FILE || !!file);
+
+  const handleNext = () => {
+    if (!canContinue) return;
+    setStep("generation");
+  };
+
+  const handleToggleGenerationType = (type: GenerateNoteType) => {
+    setSelectedGenerationTypes((current) =>
+      current.includes(type)
+        ? current.filter((selectedType) => selectedType !== type)
+        : [...current, type]
+    );
+  };
+
   const handleSubmit = async () => {
-    if (!selectedType || !name.trim() || !folderId) return;
+    if (!selectedType || !canContinue) return;
     setCreating(true);
     try {
       const result = await createNote({
@@ -133,6 +169,7 @@ export default function CreateNoteModal() {
         url: selectedType === NoteTypeEnum.URL ? url : undefined,
         file:
           selectedType === NoteTypeEnum.FILE ? file || undefined : undefined,
+        generationTypes: selectedGenerationTypes,
       });
       addActiveJob(result.data.jobId, result.data.note.name);
       refreshTree();
@@ -185,17 +222,21 @@ export default function CreateNoteModal() {
           borderBottom: `1px solid ${theme.palette.divider}`,
         }}
       >
-        {step === "form" && (
+        {step !== "type" && (
           <IconButton
             size="small"
-            onClick={() => setStep("type")}
+            onClick={() => setStep(step === "generation" ? "form" : "type")}
             sx={{ mr: 0.5 }}
           >
             <ArrowBackIcon />
           </IconButton>
         )}
         <Typography variant="h6" sx={{ fontWeight: 700, flexGrow: 1 }}>
-          {step === "type" ? "Create New Note" : `New ${selectedType} Note`}
+          {step === "type"
+            ? "Create New Note"
+            : step === "generation"
+              ? "Choose Generation Types"
+              : `New ${selectedType} Note`}
         </Typography>
         <IconButton onClick={handleClose} size="small">
           <CloseIcon />
@@ -262,7 +303,7 @@ export default function CreateNoteModal() {
               );
             })}
           </Box>
-        ) : (
+        ) : step === "form" ? (
           <Box
             sx={{ display: "flex", flexDirection: "column", gap: 2.5, mt: 1 }}
           >
@@ -271,7 +312,7 @@ export default function CreateNoteModal() {
               value={name}
               onChange={(e) => setName(e.target.value)}
               fullWidth
-              required
+              required={false}
               autoFocus
             />
 
@@ -310,6 +351,7 @@ export default function CreateNoteModal() {
                 onChange={(e) => setContent(e.target.value)}
                 fullWidth
                 multiline
+                required
                 rows={6}
                 placeholder="Write or paste your note content here..."
               />
@@ -321,6 +363,7 @@ export default function CreateNoteModal() {
                 value={url}
                 onChange={(e) => setUrl(e.target.value)}
                 fullWidth
+                required
                 placeholder="https://example.com/article"
                 type="url"
               />
@@ -383,10 +426,30 @@ export default function CreateNoteModal() {
               </Box>
             )}
           </Box>
+        ) : (
+          <Box sx={{ mt: 1 }}>
+            <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+              Choose the study materials to generate with this note.
+            </Typography>
+            <FormGroup>
+              {GENERATION_OPTIONS.map((option) => (
+                <FormControlLabel
+                  key={option.type}
+                  control={
+                    <Checkbox
+                      checked={selectedGenerationTypes.includes(option.type)}
+                      onChange={() => handleToggleGenerationType(option.type)}
+                    />
+                  }
+                  label={option.label}
+                />
+              ))}
+            </FormGroup>
+          </Box>
         )}
       </DialogContent>
 
-      {step === "form" && (
+      {step !== "type" && (
         <DialogActions sx={{ px: 3, pb: 2.5 }}>
           <Button
             onClick={handleClose}
@@ -394,19 +457,35 @@ export default function CreateNoteModal() {
           >
             Cancel
           </Button>
-          <Button
-            variant="contained"
-            onClick={handleSubmit}
-            disabled={creating || !name.trim() || !folderId}
-            sx={{
-              textTransform: "none",
-              fontWeight: 600,
-              borderRadius: 2,
-              px: 3,
-            }}
-          >
-            {creating ? "Creating..." : "Create Note"}
-          </Button>
+          {step === "form" ? (
+            <Button
+              variant="contained"
+              onClick={handleNext}
+              disabled={!canContinue}
+              sx={{
+                textTransform: "none",
+                fontWeight: 600,
+                borderRadius: 2,
+                px: 3,
+              }}
+            >
+              Next
+            </Button>
+          ) : (
+            <Button
+              variant="contained"
+              onClick={handleSubmit}
+              disabled={creating}
+              sx={{
+                textTransform: "none",
+                fontWeight: 600,
+                borderRadius: 2,
+                px: 3,
+              }}
+            >
+              {creating ? "Creating..." : "Create Note"}
+            </Button>
+          )}
         </DialogActions>
       )}
     </Dialog>

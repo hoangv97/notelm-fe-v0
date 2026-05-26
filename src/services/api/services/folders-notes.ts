@@ -72,9 +72,14 @@ function normalizeJob(job: JobQueue): JobQueue {
 
 function buildFormData(data: CreateNoteRequest): FormData {
   const formData = new FormData();
+  const generationTypes = Array.from(
+    new Set(["summary", ...(data.generationTypes ?? [])])
+  );
+
   formData.append("name", data.name);
   formData.append("inputType", data.type);
   formData.append("folderId", data.folderId);
+  formData.append("generationTypes", generationTypes.join(","));
 
   if (data.description) formData.append("description", data.description);
   if (data.content) formData.append("rawText", data.content);
@@ -279,6 +284,9 @@ export function useCreateNoteService() {
       requestConfig?: RequestConfigType
     ): Promise<ApiResult<CreateNoteResponse>> => {
       const hasFile = data.type === NoteTypeEnum.FILE && data.file;
+      const generationTypes = Array.from(
+        new Set(["summary", ...(data.generationTypes ?? [])])
+      );
       const body = hasFile
         ? buildFormData(data)
         : JSON.stringify({
@@ -288,6 +296,7 @@ export function useCreateNoteService() {
             folderId: data.folderId,
             rawText: data.type === NoteTypeEnum.TEXT ? data.content : undefined,
             sourceUrl: data.type === NoteTypeEnum.URL ? data.url : undefined,
+            generationTypes: generationTypes.join(","),
           });
 
       return fetch(`${API_URL}/v1/notes`, {
