@@ -24,6 +24,8 @@ type ApiResult<T> = {
   data: T;
 };
 
+type CreateNoteApiResponse = CreateNoteResponse | Note;
+
 function parseTags(tags: Note["tags"]): string[] {
   if (!tags) return [];
 
@@ -47,6 +49,21 @@ function normalizeNote(note: Note): Note {
     content: note.rawText,
     url: note.sourceUrl ?? undefined,
     tagsList: parseTags(note.tags),
+  };
+}
+
+function normalizeCreateNoteResponse(
+  response: CreateNoteApiResponse
+): CreateNoteResponse {
+  if ("note" in response) {
+    return {
+      ...response,
+      note: normalizeNote(response.note),
+    };
+  }
+
+  return {
+    note: normalizeNote(response),
   };
 }
 
@@ -82,6 +99,9 @@ function buildFormData(data: CreateNoteRequest): FormData {
   formData.append("generationTypes", generationTypes.join(","));
 
   if (data.description) formData.append("description", data.description);
+  if (data.generationConfig) {
+    formData.append("generationConfig", data.generationConfig);
+  }
   if (data.content) formData.append("rawText", data.content);
   if (data.url) formData.append("sourceUrl", data.url);
   if (data.file) formData.append("file", data.file);
@@ -297,6 +317,7 @@ export function useCreateNoteService() {
             rawText: data.type === NoteTypeEnum.TEXT ? data.content : undefined,
             sourceUrl: data.type === NoteTypeEnum.URL ? data.url : undefined,
             generationTypes: generationTypes.join(","),
+            generationConfig: data.generationConfig,
           });
 
       return fetch(`${API_URL}/v1/notes`, {
@@ -304,13 +325,12 @@ export function useCreateNoteService() {
         body,
         ...requestConfig,
       })
-        .then(wrapperFetchJsonResponse<CreateNoteResponse>)
+        .then(wrapperFetchJsonResponse<CreateNoteApiResponse>)
         .then((response) => ({
           status: response.status,
-          data: {
-            ...(response.data as CreateNoteResponse),
-            note: normalizeNote((response.data as CreateNoteResponse).note),
-          },
+          data: normalizeCreateNoteResponse(
+            response.data as CreateNoteApiResponse
+          ),
         }));
     },
     [fetch]

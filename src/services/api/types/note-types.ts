@@ -32,6 +32,7 @@ export type Note = {
   tags: string;
   completedTypes: string;
   generationTypes: string;
+  generationConfig: string | null;
   errorMessage: string | null;
   status: NoteStatusEnum;
   extractedTextLength: number;
@@ -108,15 +109,17 @@ export type CreateNoteRequest = {
   url?: string;
   file?: File;
   generationTypes?: GenerateNoteType[];
+  generationConfig?: string;
 };
 
 export type CreateNoteResponse = {
   note: Note;
-  jobId: string;
+  jobId?: string;
 };
 
 export type GenerateNoteType = "summary" | "flashcards" | "quiz" | "mindmap";
 
 export type GenerateNoteRequest = {
   types: GenerateNoteType[];
+  generationConfig?: string;
 };

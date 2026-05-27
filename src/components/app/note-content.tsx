@@ -27,6 +27,11 @@ import InfoIcon from "@mui/icons-material/Info";
 import { alpha, useTheme } from "@mui/material/styles";
 import ContentChunksTab from "./content-chunks-tab";
 import FlashcardsTab from "./flashcards-tab";
+import GenerationConfigFields, {
+  buildGenerationConfigJson,
+  DEFAULT_GENERATION_CONFIG_FORM_VALUE,
+  GenerationConfigFormValue,
+} from "./generation-config-fields";
 import MindmapTab from "./mindmap-tab";
 import QuizzesTab from "./quizzes-tab";
 import {
@@ -98,6 +103,8 @@ export default function NoteContent({ noteId }: NoteContentProps) {
   const [selectedGenerateTypes, setSelectedGenerateTypes] = useState<
     GenerateNoteType[]
   >(GENERATE_OPTIONS.map((option) => option.type));
+  const [generationConfig, setGenerationConfig] =
+    useState<GenerationConfigFormValue>(DEFAULT_GENERATION_CONFIG_FORM_VALUE);
 
   // Editable fields
   const [name, setName] = useState("");
@@ -204,7 +211,13 @@ export default function NoteContent({ noteId }: NoteContentProps) {
     setGenerateModalOpen(false);
     setGenerating(true);
     try {
-      await generateNote(noteId, { types: selectedGenerateTypes });
+      await generateNote(noteId, {
+        types: selectedGenerateTypes,
+        generationConfig: buildGenerationConfigJson(
+          generationConfig,
+          selectedGenerateTypes
+        ),
+      });
       await loadNote(false);
     } catch {
       // ignore
@@ -462,7 +475,7 @@ export default function NoteContent({ noteId }: NoteContentProps) {
       <Dialog
         open={generateModalOpen}
         onClose={() => setGenerateModalOpen(false)}
-        maxWidth="xs"
+        maxWidth="sm"
         fullWidth
       >
         <DialogTitle>Generate study material</DialogTitle>
@@ -484,6 +497,11 @@ export default function NoteContent({ noteId }: NoteContentProps) {
               />
             ))}
           </FormGroup>
+          <GenerationConfigFields
+            selectedTypes={selectedGenerateTypes}
+            value={generationConfig}
+            onChange={setGenerationConfig}
+          />
         </DialogContent>
         <DialogActions sx={{ px: 3, pb: 2 }}>
           <Button

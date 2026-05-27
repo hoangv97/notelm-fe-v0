@@ -406,6 +406,7 @@ export default function FolderTreePanel() {
     setCreateNoteFolderId,
   } = useAppContext();
   const [rootFolders, setRootFolders] = useState<Folder[]>([]);
+  const [rootNotes, setRootNotes] = useState<Note[]>([]);
   const [allFolders, setAllFolders] = useState<Folder[]>([]);
   const [openFolderIds, setOpenFolderIds] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
@@ -463,6 +464,7 @@ export default function FolderTreePanel() {
     try {
       const result = await getFolderContents(null);
       setRootFolders(result.data.folders);
+      setRootNotes(result.data.notes);
     } catch {
       // ignore
     } finally {
@@ -700,10 +702,10 @@ export default function FolderTreePanel() {
           >
             <CircularProgress size={24} />
           </Box>
-        ) : rootFolders.length === 0 ? (
+        ) : rootFolders.length === 0 && rootNotes.length === 0 ? (
           <Box sx={{ px: 2, py: 4, textAlign: "center" }}>
             <Typography variant="body2" color="text.secondary">
-              No folders yet
+              No notes yet
             </Typography>
           </Box>
         ) : (
@@ -719,6 +721,9 @@ export default function FolderTreePanel() {
                 onCreateChildFolder={handleCreateChildFolder}
                 onFolderAction={handleOpenFolderAction}
               />
+            ))}
+            {rootNotes.map((note) => (
+              <NoteNode key={note.id} note={note} depth={0} />
             ))}
           </List>
         )}

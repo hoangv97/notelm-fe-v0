@@ -29,6 +29,11 @@ import CloudUploadIcon from "@mui/icons-material/CloudUpload";
 import { alpha, useTheme } from "@mui/material/styles";
 import { useDropzone } from "react-dropzone";
 import { useAppContext } from "./app-context";
+import GenerationConfigFields, {
+  buildGenerationConfigJson,
+  DEFAULT_GENERATION_CONFIG_FORM_VALUE,
+  GenerationConfigFormValue,
+} from "./generation-config-fields";
 import {
   useCreateNoteService,
   useGetAllFoldersService,
@@ -93,6 +98,8 @@ export default function CreateNoteModal() {
   const [selectedGenerationTypes, setSelectedGenerationTypes] = useState<
     GenerateNoteType[]
   >(GENERATION_OPTIONS.map((option) => option.type));
+  const [generationConfig, setGenerationConfig] =
+    useState<GenerationConfigFormValue>(DEFAULT_GENERATION_CONFIG_FORM_VALUE);
 
   const createNote = useCreateNoteService();
   const getAllFolders = useGetAllFoldersService();
@@ -128,6 +135,7 @@ export default function CreateNoteModal() {
     setUrl("");
     setFile(null);
     setSelectedGenerationTypes(GENERATION_OPTIONS.map((option) => option.type));
+    setGenerationConfig(DEFAULT_GENERATION_CONFIG_FORM_VALUE);
     setCreating(false);
     setCreateNoteFolderId(null);
   };
@@ -170,10 +178,16 @@ export default function CreateNoteModal() {
         file:
           selectedType === NoteTypeEnum.FILE ? file || undefined : undefined,
         generationTypes: selectedGenerationTypes,
+        generationConfig: buildGenerationConfigJson(
+          generationConfig,
+          selectedGenerationTypes
+        ),
       });
-      addActiveJob(result.data.jobId, result.data.note.name);
-      refreshTree();
       handleClose();
+      if (result.data.jobId) {
+        addActiveJob(result.data.jobId, result.data.note.name);
+      }
+      refreshTree();
     } catch {
       // ignore
     } finally {
@@ -445,6 +459,11 @@ export default function CreateNoteModal() {
                 />
               ))}
             </FormGroup>
+            <GenerationConfigFields
+              selectedTypes={selectedGenerationTypes}
+              value={generationConfig}
+              onChange={setGenerationConfig}
+            />
           </Box>
         )}
       </DialogContent>
