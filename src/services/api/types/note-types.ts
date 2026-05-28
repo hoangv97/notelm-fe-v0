@@ -44,7 +44,7 @@ export type Note = {
   inputType: NoteTypeEnum | string;
   description: string;
   name: string;
-  folderId: string;
+  folderId: string | null;
   userId: string;
   id: string;
   createdAt: string;
@@ -93,11 +93,16 @@ export type JobQueue = {
   id: string;
   createdAt: string;
   updatedAt: string;
-  deletedAt: string | null;
+  deletedAt: string | null | Record<string, never>;
 
   // UI compatibility aliases derived from status/error/result fields.
   progress: number;
   message?: string;
+};
+
+export type PaginatedJobQueuesResponse = {
+  data: JobQueue[];
+  hasNextPage: boolean;
 };
 
 export type CreateNoteRequest = {

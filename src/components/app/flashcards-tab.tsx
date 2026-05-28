@@ -245,6 +245,7 @@ export default function FlashcardsTab({ noteId }: FlashcardsTabProps) {
         noRowsLabel="No flashcards found for this note."
         processRowUpdate={handleRowUpdate}
         tableMinWidth={1300}
+        onRefresh={loadFlashcards}
       />
 
       <Dialog

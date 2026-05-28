@@ -16,6 +16,10 @@ import DialogActions from "@mui/material/DialogActions";
 import Checkbox from "@mui/material/Checkbox";
 import FormControlLabel from "@mui/material/FormControlLabel";
 import FormGroup from "@mui/material/FormGroup";
+import FormControl from "@mui/material/FormControl";
+import InputLabel from "@mui/material/InputLabel";
+import MenuItem from "@mui/material/MenuItem";
+import Select from "@mui/material/Select";
 import SaveIcon from "@mui/icons-material/Save";
 import AutoAwesomeIcon from "@mui/icons-material/AutoAwesome";
 import DescriptionIcon from "@mui/icons-material/Description";
@@ -24,9 +28,13 @@ import StyleIcon from "@mui/icons-material/Style";
 import QuizIcon from "@mui/icons-material/Quiz";
 import AccountTreeIcon from "@mui/icons-material/AccountTree";
 import InfoIcon from "@mui/icons-material/Info";
+import DeleteIcon from "@mui/icons-material/Delete";
+import DriveFileMoveOutlinedIcon from "@mui/icons-material/DriveFileMoveOutlined";
+import WorkHistoryIcon from "@mui/icons-material/WorkHistory";
 import { alpha, useTheme } from "@mui/material/styles";
 import ContentChunksTab from "./content-chunks-tab";
 import FlashcardsTab from "./flashcards-tab";
+import JobQueuesTab from "./job-queues-tab";
 import GenerationConfigFields, {
   buildGenerationConfigJson,
   DEFAULT_GENERATION_CONFIG_FORM_VALUE,
@@ -34,12 +42,17 @@ import GenerationConfigFields, {
 } from "./generation-config-fields";
 import MindmapTab from "./mindmap-tab";
 import QuizzesTab from "./quizzes-tab";
+import useConfirmDialog from "@/components/confirm-dialog/use-confirm-dialog";
+import { useAppContext } from "./app-context";
 import {
+  useDeleteNoteService,
   useGenerateNoteService,
+  useGetAllFoldersService,
   useGetNoteService,
   useUpdateNoteService,
 } from "@/services/api/services/folders-notes";
 import {
+  Folder,
   GenerateNoteType,
   Note,
   NoteStatusEnum,
@@ -99,7 +112,12 @@ export default function NoteContent({ noteId }: NoteContentProps) {
   const [saved, setSaved] = useState(false);
   const [tabValue, setTabValue] = useState(0);
   const [generateModalOpen, setGenerateModalOpen] = useState(false);
+  const [moveModalOpen, setMoveModalOpen] = useState(false);
   const [generating, setGenerating] = useState(false);
+  const [deleting, setDeleting] = useState(false);
+  const [moving, setMoving] = useState(false);
+  const [folders, setFolders] = useState<Folder[]>([]);
+  const [moveFolderId, setMoveFolderId] = useState("__root__");
   const [selectedGenerateTypes, setSelectedGenerateTypes] = useState<
     GenerateNoteType[]
   >(GENERATE_OPTIONS.map((option) => option.type));
@@ -114,9 +132,13 @@ export default function NoteContent({ noteId }: NoteContentProps) {
   const [content, setContent] = useState("");
   const [url, setUrl] = useState("");
 
+  const { setSelectedItem, refreshTree } = useAppContext();
+  const { confirmDialog } = useConfirmDialog();
   const getNote = useGetNoteService();
   const updateNote = useUpdateNoteService();
   const generateNote = useGenerateNoteService();
+  const deleteNote = useDeleteNoteService();
+  const getAllFolders = useGetAllFoldersService();
 
   const loadNote = useCallback(
     async (showLoading = true) => {
@@ -226,6 +248,57 @@ export default function NoteContent({ noteId }: NoteContentProps) {
     }
   };
 
+  const loadFolders = useCallback(async () => {
+    try {
+      const result = await getAllFolders();
+      setFolders(result.data);
+    } catch {
+      setFolders([]);
+    }
+  }, [getAllFolders]);
+
+  const handleOpenMoveModal = async () => {
+    setMoveFolderId(note?.folderId ?? "__root__");
+    setMoveModalOpen(true);
+    await loadFolders();
+  };
+
+  const handleMoveNote = async () => {
+    setMoving(true);
+    try {
+      const result = await updateNote(noteId, {
+        folderId: moveFolderId === "__root__" ? null : moveFolderId,
+      });
+      setNote(result.data);
+      refreshTree();
+      setMoveModalOpen(false);
+    } catch {
+      // ignore
+    } finally {
+      setMoving(false);
+    }
+  };
+
+  const handleDeleteNote = async () => {
+    const confirmed = await confirmDialog({
+      title: "Delete note",
+      message: "Delete this note? This cannot be undone.",
+      successButtonText: "Delete",
+      cancelButtonText: "Cancel",
+    });
+
+    if (!confirmed) return;
+
+    setDeleting(true);
+    try {
+      await deleteNote(noteId);
+      setSelectedItem(null);
+      refreshTree();
+    } catch {
+      setDeleting(false);
+    }
+  };
+
   if (loading) {
     return (
       <Box sx={{ flex: 1, p: 4 }}>
@@ -315,6 +388,7 @@ export default function NoteContent({ noteId }: NoteContentProps) {
             iconPosition="start"
             label="Content Chunks"
           />
+          <Tab icon={<WorkHistoryIcon />} iconPosition="start" label="Jobs" />
           <Tab icon={<StyleIcon />} iconPosition="start" label="Flashcards" />
           <Tab icon={<QuizIcon />} iconPosition="start" label="Quizzes" />
           <Tab
@@ -327,7 +401,7 @@ export default function NoteContent({ noteId }: NoteContentProps) {
 
       {/* Tab Content */}
       <TabPanel value={tabValue} index={0}>
-        <Box sx={{ maxWidth: 600 }}>
+        <Box sx={{ maxWidth: 700 }}>
           <TextField
             label="Name"
             value={name}
@@ -431,6 +505,20 @@ export default function NoteContent({ noteId }: NoteContentProps) {
               {generating ? "Generating..." : "Generate"}
             </Button>
             <Button
+              variant="outlined"
+              startIcon={<DriveFileMoveOutlinedIcon />}
+              onClick={handleOpenMoveModal}
+              disabled={moving || deleting}
+              sx={{
+                borderRadius: 2,
+                textTransform: "none",
+                fontWeight: 600,
+                px: 3,
+              }}
+            >
+              Move to
+            </Button>
+            <Button
               variant="contained"
               startIcon={<SaveIcon />}
               onClick={handleSave}
@@ -443,6 +531,21 @@ export default function NoteContent({ noteId }: NoteContentProps) {
               }}
             >
               {saving ? "Saving..." : "Save Changes"}
+            </Button>
+            <Button
+              variant="outlined"
+              color="error"
+              startIcon={<DeleteIcon />}
+              onClick={handleDeleteNote}
+              disabled={deleting || moving}
+              sx={{
+                borderRadius: 2,
+                textTransform: "none",
+                fontWeight: 600,
+                px: 3,
+              }}
+            >
+              {deleting ? "Deleting..." : "Delete Note"}
             </Button>
             {saved && (
               <Typography
@@ -461,14 +564,18 @@ export default function NoteContent({ noteId }: NoteContentProps) {
       </TabPanel>
 
       <TabPanel value={tabValue} index={2}>
-        <FlashcardsTab noteId={noteId} />
+        <JobQueuesTab noteId={noteId} />
       </TabPanel>
 
       <TabPanel value={tabValue} index={3}>
-        <QuizzesTab noteId={noteId} />
+        <FlashcardsTab noteId={noteId} />
       </TabPanel>
 
       <TabPanel value={tabValue} index={4}>
+        <QuizzesTab noteId={noteId} />
+      </TabPanel>
+
+      <TabPanel value={tabValue} index={5}>
         <MindmapTab noteId={noteId} />
       </TabPanel>
 
@@ -518,6 +625,50 @@ export default function NoteContent({ noteId }: NoteContentProps) {
             sx={{ textTransform: "none", fontWeight: 600 }}
           >
             Generate
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      <Dialog
+        open={moveModalOpen}
+        onClose={() => setMoveModalOpen(false)}
+        maxWidth="xs"
+        fullWidth
+      >
+        <DialogTitle>Move note</DialogTitle>
+        <DialogContent>
+          <FormControl fullWidth sx={{ mt: 1 }}>
+            <InputLabel>Destination</InputLabel>
+            <Select
+              label="Destination"
+              value={moveFolderId}
+              onChange={(event) => setMoveFolderId(event.target.value)}
+            >
+              <MenuItem value="__root__">Root</MenuItem>
+              {folders.map((folder) => (
+                <MenuItem key={folder.id} value={folder.id}>
+                  {folder.parentId ? "  └ " : ""}
+                  {folder.name}
+                </MenuItem>
+              ))}
+            </Select>
+          </FormControl>
+        </DialogContent>
+        <DialogActions sx={{ px: 3, pb: 2 }}>
+          <Button
+            onClick={() => setMoveModalOpen(false)}
+            sx={{ textTransform: "none" }}
+          >
+            Cancel
+          </Button>
+          <Button
+            variant="contained"
+            startIcon={<DriveFileMoveOutlinedIcon />}
+            onClick={handleMoveNote}
+            disabled={moving}
+            sx={{ textTransform: "none", fontWeight: 600 }}
+          >
+            {moving ? "Moving..." : "Move"}
           </Button>
         </DialogActions>
       </Dialog>

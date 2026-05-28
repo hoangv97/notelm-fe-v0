@@ -15,6 +15,7 @@ import {
   JobStatusEnum,
   Note,
   NoteTypeEnum,
+  PaginatedJobQueuesResponse,
   UpdateFolderRequest,
 } from "../types/note-types";
 import { RequestConfigType } from "./types/request-config";
@@ -269,6 +270,7 @@ export function useUpdateNoteService() {
         tags: string[];
         content: string;
         url: string;
+        folderId: Note["folderId"];
       }>,
       requestConfig?: RequestConfigType
     ): Promise<ApiResult<Note>> => {
@@ -278,6 +280,7 @@ export function useUpdateNoteService() {
         tags: data.tags?.join(","),
         rawText: data.content,
         sourceUrl: data.url,
+        folderId: data.folderId,
       };
 
       return fetch(`${API_URL}/v1/notes/${id}`, {
@@ -291,6 +294,22 @@ export function useUpdateNoteService() {
           data: normalizeNote(response.data as Note),
         }));
     },
+    [fetch]
+  );
+}
+
+export function useDeleteNoteService() {
+  const fetch = useFetch();
+
+  return useCallback(
+    (id: string, requestConfig?: RequestConfigType): Promise<ApiResult<void>> =>
+      fetch(`${API_URL}/v1/notes/${id}`, {
+        method: "DELETE",
+        ...requestConfig,
+      }).then((response) => ({
+        status: response.status,
+        data: undefined,
+      })),
     [fetch]
   );
 }
@@ -353,6 +372,50 @@ export function useGetJobStatusService() {
         .then((response) => ({
           status: response.status,
           data: normalizeJob(response.data as JobQueue),
+        }));
+    },
+    [fetch]
+  );
+}
+
+type JobQueuesListParams = {
+  page: number;
+  limit: number;
+  noteId: string;
+};
+
+function buildJobQueuesUrl(params: JobQueuesListParams) {
+  const requestUrl = new URL(`${API_URL}/v1/job-queues`);
+
+  Object.entries(params).forEach(([key, value]) => {
+    requestUrl.searchParams.append(key, String(value));
+  });
+
+  return requestUrl;
+}
+
+export function useGetJobQueuesService() {
+  const fetch = useFetch();
+
+  return useCallback(
+    (
+      params: JobQueuesListParams,
+      requestConfig?: RequestConfigType
+    ): Promise<ApiResult<PaginatedJobQueuesResponse>> => {
+      return fetch(buildJobQueuesUrl(params), {
+        method: "GET",
+        ...requestConfig,
+      })
+        .then(wrapperFetchJsonResponse<PaginatedJobQueuesResponse>)
+        .then((response) => ({
+          status: response.status,
+          data: {
+            data: (response.data as PaginatedJobQueuesResponse).data.map(
+              normalizeJob
+            ),
+            hasNextPage: (response.data as PaginatedJobQueuesResponse)
+              .hasNextPage,
+          },
         }));
     },
     [fetch]

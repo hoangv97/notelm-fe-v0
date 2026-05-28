@@ -1,6 +1,9 @@
 "use client";
 
 import Box from "@mui/material/Box";
+import Button from "@mui/material/Button";
+import Stack from "@mui/material/Stack";
+import RefreshIcon from "@mui/icons-material/Refresh";
 import { DataGrid, GridColDef, GridValidRowModel } from "@mui/x-data-grid";
 import type { DataGridProps } from "@mui/x-data-grid";
 
@@ -13,6 +16,8 @@ type DataGridTableProps<R extends GridValidRowModel> = Omit<
   height?: number;
   noRowsLabel?: string;
   tableMinWidth?: number | string;
+  onRefresh?: () => void;
+  refreshLabel?: string;
 };
 
 export default function DataGridTable<R extends GridValidRowModel>({
@@ -23,41 +28,59 @@ export default function DataGridTable<R extends GridValidRowModel>({
   tableMinWidth = 1100,
   initialState,
   pageSizeOptions = [5, 10, 25],
+  onRefresh,
+  refreshLabel = "Refresh",
   sx,
   ...props
 }: DataGridTableProps<R>) {
   return (
-    <Box sx={{ height, width: "100%", overflowX: "auto" }}>
-      <Box sx={{ height: "100%", minWidth: tableMinWidth, width: "100%" }}>
-        <DataGrid
-          rows={rows}
-          columns={columns}
-          checkboxSelection
-          disableRowSelectionOnClick
-          showToolbar
-          pageSizeOptions={pageSizeOptions}
-          initialState={{
-            pagination: {
-              paginationModel: {
-                pageSize: 10,
+    <Box sx={{ width: "100%" }}>
+      {onRefresh && (
+        <Stack direction="row" justifyContent="flex-end" sx={{ mb: 1 }}>
+          <Button
+            variant="outlined"
+            size="small"
+            startIcon={<RefreshIcon />}
+            onClick={onRefresh}
+            disabled={Boolean(props.loading)}
+            sx={{ textTransform: "none", fontWeight: 600 }}
+          >
+            {refreshLabel}
+          </Button>
+        </Stack>
+      )}
+      <Box sx={{ height, width: "100%", overflowX: "auto" }}>
+        <Box sx={{ height: "100%", minWidth: tableMinWidth, width: "100%" }}>
+          <DataGrid
+            rows={rows}
+            columns={columns}
+            checkboxSelection
+            disableRowSelectionOnClick
+            showToolbar
+            pageSizeOptions={pageSizeOptions}
+            initialState={{
+              pagination: {
+                paginationModel: {
+                  pageSize: 10,
+                },
               },
-            },
-            ...initialState,
-          }}
-          localeText={{
-            noRowsLabel,
-            ...props.localeText,
-          }}
-          sx={{
-            borderColor: "divider",
-            bgcolor: "background.paper",
-            "& .MuiDataGrid-cell:focus, & .MuiDataGrid-columnHeader:focus": {
-              outline: "none",
-            },
-            ...sx,
-          }}
-          {...props}
-        />
+              ...initialState,
+            }}
+            localeText={{
+              noRowsLabel,
+              ...props.localeText,
+            }}
+            sx={{
+              borderColor: "divider",
+              bgcolor: "background.paper",
+              "& .MuiDataGrid-cell:focus, & .MuiDataGrid-columnHeader:focus": {
+                outline: "none",
+              },
+              ...sx,
+            }}
+            {...props}
+          />
+        </Box>
       </Box>
     </Box>
   );

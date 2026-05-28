@@ -194,6 +194,11 @@ export default function QuizzesTab({ noteId }: QuizzesTabProps) {
     loadQuestions();
   }, [loadQuestions]);
 
+  const handleRefresh = useCallback(async () => {
+    await loadQuizzes();
+    await loadQuestions();
+  }, [loadQuizzes, loadQuestions]);
+
   const handlePreview = (question: QuizQuestion) => {
     setPreviewQuestion(question);
     setSelectedAnswer(null);
@@ -406,6 +411,7 @@ export default function QuizzesTab({ noteId }: QuizzesTabProps) {
         noRowsLabel="No quiz questions found for this note."
         processRowUpdate={handleRowUpdate}
         tableMinWidth={1500}
+        onRefresh={handleRefresh}
       />
 
       <Dialog
